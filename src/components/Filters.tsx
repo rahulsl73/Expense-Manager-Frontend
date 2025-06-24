@@ -63,7 +63,6 @@ const Filters: React.FC<FiltersProps> = ({ onFilter }) => {
               className="text-gray-900 dark:text-gray-100 transition-colors"
             >
               <MenuItem value="">All Categories</MenuItem>
-              {/* TODO: Map actual categories here */}
               <MenuItem value="Food">Food</MenuItem>
               <MenuItem value="Transport">Transport</MenuItem>
               <MenuItem value="Utilities">Utilities</MenuItem>

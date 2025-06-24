@@ -25,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const uid   = localStorage.getItem('userId');
     if (token && uid) {
       api
-        .get<User>('/users', { headers: { 'User-Id': uid } })
+        .get<User>('/users/profile', { headers: { 'User-Id': uid } })
         .then(res => setUser(res.data))
         .catch(() => {
           try {
@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (email: string, budget: number) => {
     if (!user) throw new Error('No user logged in');
     const payload = { email, monthlyBudget: budget };
-    const res = await api.put<User>('/users', payload, {
+    const res = await api.put<User>('/users/profile', payload, {
       headers: {
         'User-Id':      String(user.id),
         'Content-Type': 'application/json',

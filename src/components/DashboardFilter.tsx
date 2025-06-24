@@ -24,7 +24,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
       <input
         type="date"
         value={start}
-        onChange={e => onChangeStart(e.target.value)}
+        onChange={e => onChangeStart(e.target.value)} // e -> event handler truggers when certain event triggers
         className="border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-1 rounded transition-colors"
       />
     </div>
