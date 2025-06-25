@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import {
@@ -10,59 +10,48 @@ import {
   Avatar,
   Divider,
 } from '@mui/material';
-import api from '../api/api';
 import { toast } from 'react-toastify';
 import { UserCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { Navigate } from 'react-router-dom';
 
-interface Profile {
+interface ProfileFormValues {
   email: string;
   monthlyBudget: number;
 }
 
 const ProfileSettings: React.FC = () => {
-  const { user, updateProfile } = useAuth();
-  const uid = user?.id;
+  const { user, loading: authLoading, updateProfile } = useAuth();
 
-  const [initial, setInitial] = useState<Profile>({ email: '', monthlyBudget: 0 });
-  const [loading, setLoading] = useState(true);
+  if (authLoading) {
+    return <Typography variant="body1" align="center">Loading…</Typography>;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  useEffect(() => {
-    if (!uid) return;
-    api
-      .get<Profile>('/users/profile', { headers: { 'User-Id': String(uid) } })
-      .then(res => setInitial({
-        email:          res.data.email,
-        monthlyBudget:  res.data.monthlyBudget
-      }))
-      .catch(() => toast.error('Failed to load profile'))
-      .finally(() => setLoading(false));
-  }, [uid]);
-
-  const formik = useFormik<Profile>({
+  const formik = useFormik<ProfileFormValues>({
     enableReinitialize: true,
-    initialValues:      initial,
-    validationSchema:   Yup.object({
-      email:          Yup.string().email('Invalid email').required('Required'),
-      monthlyBudget:  Yup.number().min(0, 'Must be ≥ 0').required('Required'),
+    initialValues: {
+      email: user.email,
+      monthlyBudget: user.monthlyBudget,
+    },
+    validationSchema: Yup.object({
+      email: Yup.string().email('Invalid email').required('Required'),
+      monthlyBudget: Yup.number().min(0, 'Must be ≥ 0').required('Required'),
     }),
-    onSubmit: async values => {
-      if (!uid) {
-        toast.error('No user logged in');
-        return;
-      }
+    onSubmit: async (values, { setSubmitting }) => {
+      setSubmitting(true);
       try {
         await updateProfile(values.email, values.monthlyBudget);
         toast.success('Profile updated!');
       } catch {
         toast.error('Failed to update profile');
+      } finally {
+        setSubmitting(false);
       }
     },
   });
-
-  if (loading) {
-    return <Typography variant="body1" align="center">Loading…</Typography>;
-  }
 
   return (
     <Paper elevation={3} className="max-w-lg mx-auto p-6">

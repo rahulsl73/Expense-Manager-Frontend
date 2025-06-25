@@ -57,7 +57,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, initialValues }) =
         headers: { 'User-Id': String(user.id) },
         params: { start, end },
       });
-      setRemaining(user.monthly_budget - res.data.totalSpent);
+      setRemaining(user.monthlyBudget - res.data.totalSpent);
     } catch (err) {
       console.error('Failed to fetch summary:', err);
     } finally {

@@ -19,8 +19,14 @@ const Dashboard: React.FC = () => {
   const { currencyCode, loading } = useContext(ThemeCurrencyContext);
   const userId = Number(localStorage.getItem('userId'));
 
-  const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [end, setEnd] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [start, setStart] = useState<string>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .slice(0, 10)
+  );
+  const [end, setEnd] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
   const [n, setN] = useState<number>(5);
   const [interval, setInterval] = useState<Interval>('day');
 
