@@ -18,28 +18,30 @@ interface ThemeCurrencyContextType {
   currencies: string[];
   loading: boolean;
   updateSettings: (newSettings: SettingsInput) => Promise<Settings>;
+  rates: Record<string, number>;
+  convert: (amount: number) => number;
 }
 
 export const ThemeCurrencyContext = createContext<ThemeCurrencyContextType>({} as any);
+const DEFAULT_CURRENCIES = ["USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD"];
 
 export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem("token") || "";
-  const currencies = ["USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD"];
+  const currencies = DEFAULT_CURRENCIES;
 
   const [theme, setTheme] = useState<Theme>(() =>
     localStorage.getItem("theme") === "dark" ? "DARK" : "LIGHT"
   );
   const [currencyCode, setCurrencyCode] = useState<string>(currencies[0]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [rates] = useState<Record<string, number>>({});
 
-  // Sync theme class to document and persist to localStorage
   useEffect(() => {
     const isDark = theme === "DARK";
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [theme]);
 
-  // Fetch settings for the current userId from localStorage
   useEffect(() => {
     const uid = localStorage.getItem("userId");
     const userId = uid ? parseInt(uid, 10) : NaN;
@@ -62,7 +64,6 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
         setTheme(data.theme);
       })
       .catch(() => {
-        // Create defaults if not found
         const initial: SettingsInput = {
           currencyCode: currencies[0],
           theme: "LIGHT",
@@ -86,6 +87,8 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
       })
       .finally(() => setLoading(false));
   }, [token, currencies]);
+
+ 
 
   const updateSettings = async (newSettings: SettingsInput): Promise<Settings> => {
     const uid = localStorage.getItem("userId");
@@ -111,9 +114,14 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
     return res.data;
   };
 
+  const convert = (amount: number) => {
+    const rate = rates[currencyCode] || 1;
+    return amount * rate;
+  };
+
   return (
     <ThemeCurrencyContext.Provider
-      value={{ currencyCode, theme, currencies, loading, updateSettings }}
+      value={{ currencyCode, theme, currencies, loading, updateSettings, rates, convert }}
     >
       {children}
     </ThemeCurrencyContext.Provider>

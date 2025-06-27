@@ -19,11 +19,15 @@ const Dashboard: React.FC = () => {
   const { currencyCode, loading } = useContext(ThemeCurrencyContext);
   const userId = Number(localStorage.getItem('userId'));
 
-  const [start, setStart] = useState<string>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .slice(0, 10)
-  );
+  const getFirstOfMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;
+  };
+
+  const [start, setStart] = useState<string>(getFirstOfMonth());
+
   const [end, setEnd] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );

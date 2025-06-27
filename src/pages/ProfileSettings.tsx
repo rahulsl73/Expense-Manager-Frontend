@@ -1,15 +1,6 @@
 import React from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import {
-  Box,
-  TextField,
-  Button,
-  Paper,
-  Typography,
-  Avatar,
-  Divider,
-} from '@mui/material';
 import { toast } from 'react-toastify';
 import { UserCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -24,7 +15,7 @@ const ProfileSettings: React.FC = () => {
   const { user, loading: authLoading, updateProfile } = useAuth();
 
   if (authLoading) {
-    return <Typography variant="body1" align="center">Loading…</Typography>;
+    return <div className="text-center text-gray-700 dark:text-gray-300">Loading…</div>;
   }
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -54,41 +45,54 @@ const ProfileSettings: React.FC = () => {
   });
 
   return (
-    <Paper elevation={3} className="max-w-lg mx-auto p-6">
-      <Box display="flex" alignItems="center" flexDirection="column" mb={2}>
-        <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}>
-          <UserCircle2 size={48} />
-        </Avatar>
-        <Typography variant="h5" mt={1}>Profile Settings</Typography>
-      </Box>
-      <Divider sx={{ mb: 3 }} />
-      <Box component="form" onSubmit={formik.handleSubmit} sx={{ display: 'grid', gap: 2 }}>
-        <TextField
-          fullWidth
-          label="Email"
-          name="email"
-          value={formik.values.email}
-          onChange={formik.handleChange}
-          error={!!(formik.touched.email && formik.errors.email)}
-          helperText={formik.touched.email && formik.errors.email}
-        />
-        <TextField
-          fullWidth
-          type="number"
-          label="Monthly Budget"
-          name="monthlyBudget"
-          value={formik.values.monthlyBudget}
-          onChange={formik.handleChange}
-          error={!!(formik.touched.monthlyBudget && formik.errors.monthlyBudget)}
-          helperText={formik.touched.monthlyBudget && formik.errors.monthlyBudget}
-        />
-        <Box display="flex" justifyContent="flex-end" mt={2}>
-          <Button type="submit" variant="contained" size="large" disabled={formik.isSubmitting}>
+    <div className="max-w-lg mx-auto bg-white dark:bg-gray-800 p-6 rounded shadow transition-colors">
+      <div className="flex flex-col items-center mb-6">
+        <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white">
+          <UserCircle2 size={32} />
+        </div>
+        <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-gray-100">Profile Settings</h2>
+      </div>
+
+      <form onSubmit={formik.handleSubmit} className="space-y-4">
+        <div>
+          <label className="block mb-1 text-gray-700 dark:text-gray-300">Email</label>
+          <input
+            type="email"
+            name="email"
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+          />
+          {formik.touched.email && formik.errors.email && (
+            <p className="text-red-500 mt-1 text-sm">{formik.errors.email}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block mb-1 text-gray-700 dark:text-gray-300">Monthly Budget</label>
+          <input
+            type="number"
+            name="monthlyBudget"
+            value={formik.values.monthlyBudget}
+            onChange={formik.handleChange}
+            className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+          />
+          {formik.touched.monthlyBudget && formik.errors.monthlyBudget && (
+            <p className="text-red-500 mt-1 text-sm">{formik.errors.monthlyBudget}</p>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={formik.isSubmitting}
+            className={`px-6 py-2 rounded text-white transition-colors ${formik.isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+          >
             Save Changes
-          </Button>
-        </Box>
-      </Box>
-    </Paper>
+          </button>
+        </div>
+      </form>
+    </div>
   );
 };
 
