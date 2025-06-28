@@ -17,7 +17,6 @@ interface Summary { totalSpent: number; expenseCount: number; averageSpent: numb
 
 const Dashboard: React.FC = () => {
   const { currencyCode, loading } = useContext(ThemeCurrencyContext);
-  const userId = Number(localStorage.getItem('userId'));
 
   const getFirstOfMonth = () => {
     const now = new Date();
@@ -46,14 +45,13 @@ const Dashboard: React.FC = () => {
   const fetchCharts = async () => {
     setChartsLoaded(false);
     try {
-      const headers = { 'User-Id': String(userId) };
       const params = { start, end, n, interval };
-
+      const userId = localStorage.getItem("userId");
       const [sumRes, catRes, topRes, lineRes] = await Promise.all([
-        api.get<Summary>('/expenses/stats/summary', { headers, params }),
-        api.get<Record<string, number>>('/expenses/stats/category', { headers, params }),
-        api.get<any[]>('/expenses/stats/top', { headers, params }),
-        api.get<any[]>('/expenses/stats/timeseries', { headers, params }),
+        api.get<Summary>(`/user/${userId}/expenses/stats/summary`, {  params }),
+        api.get<Record<string, number>>(`/user/${userId}/expenses/stats/category`, { params }),
+        api.get<any[]>(`/user/${userId}/expenses/stats/top`, { params }),
+        api.get<any[]>(`/user/${userId}/expenses/stats/timeseries`, { params }),
       ]);
 
       setSummary(sumRes.data);

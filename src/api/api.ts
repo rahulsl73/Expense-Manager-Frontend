@@ -1,22 +1,11 @@
 import axios from 'axios';
 const api = axios.create({
   baseURL: 'http://localhost:8080',
+  withCredentials:true, // allow browser to send cookies wher we have our token
 });
 
 api.interceptors.request.use(config => {
   config.headers = config.headers || {};
-  if (config.method?.toLowerCase() !== 'options') {
-    const token = localStorage.getItem('token');
-    const uid   = localStorage.getItem('userId');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    if (uid) {
-      config.headers['User-Id'] = uid;
-    }
-  }
-
-  
   config.headers['Accept'] = config.url?.endsWith('/export')
     ? 'text/csv'
     : 'application/json';

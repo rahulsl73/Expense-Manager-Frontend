@@ -41,13 +41,10 @@ const Settings: React.FC = () => {
       toast.success("Settings saved!");
 
       await api.put(
-        "/expenses/convert",
+        `user/${userId}/expenses/convert`,
         {
           fromCurrency: prevCurrency.current,
           toCurrency: saved.currencyCode,
-        },
-        {
-          headers: { "User-Id": String(userId) },
         }
       );
 

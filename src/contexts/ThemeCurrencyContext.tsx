@@ -26,7 +26,7 @@ export const ThemeCurrencyContext = createContext<ThemeCurrencyContextType>({} a
 const DEFAULT_CURRENCIES = ["USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD"];
 
 export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem("token") || "";
+  
   const currencies = DEFAULT_CURRENCIES;
 
   const [theme, setTheme] = useState<Theme>(() =>
@@ -53,11 +53,7 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setLoading(true);
     api
-      .get<Settings>(`/settings`, {
-        headers: {
-          "User-Id": userId.toString(),
-          Authorization: `Bearer ${token}`,
-        },
+      .get<Settings>(`/user/${userId}/settings`, {
       })
       .then(({ data }) => {
         setCurrencyCode(data.currencyCode);
@@ -70,12 +66,10 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         return api
           .put<Settings>(
-            `/settings`,
+            `/user/${userId}/settings`,
             initial,
             {
               headers: {
-                "User-Id": userId.toString(),
-                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
               },
             }
@@ -86,7 +80,7 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
           });
       })
       .finally(() => setLoading(false));
-  }, [token, currencies]);
+  }, [currencies]);
 
  
 
@@ -98,12 +92,10 @@ export const ThemeCurrencyProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const res = await api.put<Settings>(
-      `/settings`,
+      `/user/${userId}/settings`,
       newSettings,
       {
         headers: {
-          "User-Id": userId.toString(),
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       }

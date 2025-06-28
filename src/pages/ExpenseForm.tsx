@@ -53,8 +53,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, initialValues }) =
     setLoadingRem(true);
     try {
       const { start, end } = getCurrentMonthRange();
-      const res = await api.get<SummaryResponse>("/expenses/stats/summary", {
-        headers: { "User-Id": String(user.id) },
+      const userId = localStorage.getItem("userId");
+      const res = await api.get<SummaryResponse>(`/user/${userId}/expenses/stats/summary`, {
         params: { start, end },
       });
       setRemaining(user.monthlyBudget - res.data.totalSpent);
@@ -126,12 +126,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, initialValues }) =
           };
 
           try {
-            const headers = { "User-Id": String(user.id) };
+            
             if (isEdit) {
-              await api.put(`/expenses/${initialValues!.id}`, payload, { headers });
+              await api.put(`/user/${user.id}/expenses/${initialValues!.id}`, payload);
               toast.success("Expense updated!");
             } else {
-              await api.post("/expenses", payload, { headers });
+              await api.post(`/user/${user.id}/expenses`, payload);
               toast.success("Expense added!");
             }
             await fetchRemaining();
@@ -190,7 +190,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, initialValues }) =
                 </div>
               ))}
 
-              {/* DatePicker with dark calendar */}
               <div>
                 <label className="block mb-1 text-gray-700 dark:text-gray-300">Date</label>
                 <DatePicker

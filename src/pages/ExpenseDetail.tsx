@@ -19,11 +19,11 @@ const ExpenseDetail: React.FC = () => {
   const [expense, setExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
+  const userId = localStorage.getItem("userId");
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get<Expense>(`/expenses/${id}`);
+        const res = await api.get<Expense>(`/user/${userId}/expenses/${id}`);
         setExpense(res.data);
       } catch {
         alert('Failed to load expense');
@@ -35,7 +35,7 @@ const ExpenseDetail: React.FC = () => {
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      await api.delete(`/expenses/${id}`);
+      await api.delete(`/user/${userId}/expenses/${id}`);
       navigate('/');
     }
   };

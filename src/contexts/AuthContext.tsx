@@ -11,114 +11,76 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  updateProfile: (email: string, budget: number) => Promise<User>;
-  login: (token: string, userId: number, email: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  updateProfile: (email: string, budget: number) => Promise<User>;
 }
 
 export const AuthContext = createContext<AuthContextType>({} as any);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [user, setUser]       = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const uid = localStorage.getItem('userId');
-
-    setLoading(true);
-    if (token && uid) {
-      api
-        .get<{ id: number; username: string; email: string; monthlyBudget: number }>(
-          '/users/profile',
-          { headers: { 'User-Id': uid } }
-        )
-        .then(res => {
-          const { id, username, email, monthlyBudget } = res.data;
-          setUser({ id, username, email, monthlyBudget });
-        })
-        .catch(() => {
-          try {
-            const { sub, email } = JSON.parse(atob(token.split('.')[1]));
-            setUser({
-              id: Number(uid),
-              username: sub,
-              email,
-              monthlyBudget: 0,
-            });
-          } catch {
-            localStorage.clear();
-          }
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
+    if (!uid) {
       setLoading(false);
+      return;
     }
+
+    api.get<User>(`/user/${uid}/profile`)
+      .then(res => setUser(res.data))
+      .catch(() => localStorage.removeItem('userId'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = async (token: string, userId: number, email: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('userId', String(userId));
-    localStorage.setItem('email', email);
-
+  const login = async (username: string, password: string) => {
     setLoading(true);
     try {
-      const res = await api.get<{ id: number; username: string; email: string; monthlyBudget: number }>(
-        '/users/profile',
-        { headers: { 'User-Id': String(userId) } }
+      const { data: auth } = await api.post<{ userId: number; email: string }>(
+        '/auth/login',
+        { username, password }
       );
-      const { id, username, email: userEmail, monthlyBudget } = res.data;
-      setUser({ id, username, email: userEmail, monthlyBudget });
-    } catch {
-      const { sub } = JSON.parse(atob(token.split('.')[1]));
-      setUser({
-        id: userId,
-        username: sub,
-        email,
-        monthlyBudget: 0,
-      });
+
+      localStorage.setItem('userId', String(auth.userId));
+      localStorage.setItem('email', auth.email);
+
+      const { data: profile } = await api.get<User>(`/user/${auth.userId}/profile`);
+      setUser(profile);
+
+    } catch (err) {
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem('userId');
+    localStorage.removeItem('email');
     setUser(null);
+    api.post('/auth/logout')
   };
 
+  const userId = localStorage.getItem("userId");
   const updateProfile = async (email: string, budget: number): Promise<User> => {
     if (!user) throw new Error('No user logged in');
     setLoading(true);
-    const payload = { email, monthlyBudget: budget };
-    const res = await api.put<{ id: number; username: string; email: string; monthlyBudget: number }>(
-      '/users/profile',
-      payload,
-      {
-        headers: {
-          'User-Id': String(user.id),
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const { id, username, email: updatedEmail, monthlyBudget } = res.data;
-    const updatedUser: User = {
-      id,
-      username,
-      email: updatedEmail,
-      monthlyBudget,
-    };
-
-    setUser(updatedUser);
-    setLoading(false);
-    return updatedUser;
+    try {
+      const { data } = await api.put<User>(
+        `/user/${userId}/profile`,
+        { email, monthlyBudget: budget }
+      );
+      setUser(data);
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, updateProfile, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

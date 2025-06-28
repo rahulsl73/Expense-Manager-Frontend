@@ -10,7 +10,7 @@ import { format, parseISO, formatISO } from 'date-fns';
 interface Expense {
   id: number;
   title: string;
-  amount: number; // stored in USD
+  amount: number; 
   category: string;
   date: string;
   tags: string[];
@@ -33,7 +33,6 @@ const ExpenseList: React.FC = () => {
   const navigate = useNavigate();
   const { currencyCode, convert } = useContext(ThemeCurrencyContext);
 
-  // Default date range: 1st of this month → today
   const now = new Date();
   const defaultStart = formatISO(new Date(now.getFullYear(), now.getMonth(), 1), { representation: 'date' });
   const defaultEnd = formatISO(now, { representation: 'date' });
@@ -41,7 +40,8 @@ const ExpenseList: React.FC = () => {
   const fetchExpenses = async (p: FilterParams) => {
     setLoading(true);
     try {
-      const res = await api.get('/expenses', {
+      const userId = localStorage.getItem("userId");
+      const res = await api.get(`/user/${userId}/expenses`, {
         params: { page: p.page, size: p.size, start: p.start, end: p.end, category: p.category },
       });
       setExpenses(res.data.content);
@@ -79,7 +79,8 @@ const ExpenseList: React.FC = () => {
         end: filters.end || defaultEnd,
         category: filters.category,
       };
-      const resp = await api.get<Blob>('/expenses/export', {
+      const userId= localStorage.getItem("userId");
+      const resp = await api.get<Blob>(`/user/${userId}/expenses/export`, {
         params,
         responseType: 'blob',
       });
@@ -106,7 +107,7 @@ const ExpenseList: React.FC = () => {
           onClick={() => navigate('/expenses/new')}
           className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded shadow transition-colors"
         >
-          + Add Expense
+          Add Expense
         </button>
       </header>
 
