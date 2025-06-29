@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAppSelector } from '../hooks';
 import api from '../api/api';
 import ExpenseForm from './ExpenseForm';
-import { AuthContext } from '../contexts/AuthContext';
 
 interface InitialValues {
   id: number;
@@ -17,9 +17,11 @@ interface InitialValues {
 const EditExpense: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const user = useAppSelector(state => state.auth.user);
+
   const [initialValues, setInitialValues] = useState<InitialValues | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -27,20 +29,49 @@ const EditExpense: React.FC = () => {
       return;
     }
 
-    api.get<InitialValues>(
-      `/user/${user.id}/expenses/${id}`
-    )
-    .then(res => setInitialValues(res.data))
-    .catch(err => {
-      console.error('Failed to load expense', err);
-      alert('Failed to load expense');
-      navigate('/expenses');
-    })
-    .finally(() => setLoading(false));
+    if (!id || isNaN(Number(id))) {
+      setError('Invalid expense ID');
+      setLoading(false);
+      return;
+    }
+
+    const expenseId = Number(id);
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const resp = await api.get<InitialValues>(
+          `/user/${user.id}/expenses/${expenseId}`
+        );
+        setInitialValues(resp.data);
+      } catch (err: any) {
+        console.error('Failed to load expense', err);
+        setError(err.response?.data?.message || 'Failed to load expense');
+        setTimeout(() => {
+          navigate('/expenses');
+        }, 2000);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [user, id, navigate]);
 
-  if (loading || !initialValues) {
+  if (loading) {
     return <p className="p-4 text-center">Loading expense…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="p-4 text-center text-red-500">
+        {error}. Redirecting...
+      </p>
+    );
+  }
+
+  if (!initialValues) {
+    return null; 
   }
 
   return (

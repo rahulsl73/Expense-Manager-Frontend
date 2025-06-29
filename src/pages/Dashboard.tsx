@@ -1,79 +1,92 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip,
   BarChart, Bar, XAxis, YAxis,
   LineChart, Line, CartesianGrid, Legend, ResponsiveContainer
 } from 'recharts';
-import api from '../api/api';
-import { ThemeCurrencyContext } from '../contexts/ThemeCurrencyContext';
+import { useAppDispatch, useAppSelector } from '../hooks';
 import DashboardFilter, { type Interval } from '../components/DashboardFilter';
+import {
+  fetchSummary,
+  fetchCategory,
+  fetchTop,
+  fetchTimeSeries,
+} from '../store/slices/dashboardSlice';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-interface CategoryData { category: string; value: number }
-interface TopTx { title: string; amount: number }
-interface LineData { period: string; amount: number }
-interface Summary { totalSpent: number; expenseCount: number; averageSpent: number }
-
 const Dashboard: React.FC = () => {
-  const { currencyCode, loading } = useContext(ThemeCurrencyContext);
+  const dispatch = useAppDispatch();
 
-  const getFirstOfMonth = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}-01`;
-  };
+  const user = useAppSelector(s => s.auth.user);
 
-  const [start, setStart] = useState<string>(getFirstOfMonth());
-
-  const [end, setEnd] = useState<string>(
-    new Date().toISOString().slice(0, 10)
+  const settingsLoaded = useAppSelector(
+    s => !!s.settings.settings && !s.settings.loadingFetch
   );
-  const [n, setN] = useState<number>(5);
+  const currency = useAppSelector(
+    s => s.settings.settings?.currencyCode
+  ) ?? 'USD';
+
+  const {
+    summary,
+    category,
+    top,
+    timeseries,
+    loadingSummary,
+    loadingCategory,
+    loadingTop,
+    loadingTime,
+    error,
+  } = useAppSelector(s => s.dashboard);
+
+  const [start, setStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  });
+  const [end, setEnd] = useState(() => new Date().toISOString().slice(0,10));
+  const [n, setN] = useState(5);
   const [interval, setInterval] = useState<Interval>('day');
 
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
-  const [topTransactions, setTopTransactions] = useState<TopTx[]>([]);
-  const [lineData, setLineData] = useState<LineData[]>([]);
-  const [chartsLoaded, setChartsLoaded] = useState(false);
+  const isLoading =
+    loadingSummary || loadingCategory || loadingTop || loadingTime;
 
   const formatAmt = (v: number) =>
-    new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(v);
+    new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+    }).format(v);
 
-  const fetchCharts = async () => {
-    setChartsLoaded(false);
-    try {
-      const params = { start, end, n, interval };
-      const userId = localStorage.getItem("userId");
-      const [sumRes, catRes, topRes, lineRes] = await Promise.all([
-        api.get<Summary>(`/user/${userId}/expenses/stats/summary`, {  params }),
-        api.get<Record<string, number>>(`/user/${userId}/expenses/stats/category`, { params }),
-        api.get<any[]>(`/user/${userId}/expenses/stats/top`, { params }),
-        api.get<any[]>(`/user/${userId}/expenses/stats/timeseries`, { params }),
-      ]);
-
-      setSummary(sumRes.data);
-      setCategoryData(Object.entries(catRes.data).map(([category, value]) => ({ category, value })));
-      setTopTransactions(topRes.data.map(tx => ({ title: tx.title, amount: tx.amount })));
-      setLineData(lineRes.data.map(pt => ({ period: pt.date, amount: pt.total })));
-    } catch (err) {
-      console.error('Error fetching chart data:', err);
-    } finally {
-      setChartsLoaded(true);
-    }
+  const loadCharts = () => {
+    const payload = { start, end };
+    dispatch(fetchSummary(payload));
+    dispatch(fetchCategory(payload));
+    dispatch(fetchTop({ ...payload, n }));
+    dispatch(fetchTimeSeries({ ...payload, interval }));
   };
 
   useEffect(() => {
-    if (!loading) fetchCharts();
-  }, [loading]);
+    if (user && settingsLoaded && !summary && !isLoading && !error) {
+      loadCharts();
+    }
+  }, [
+    user,
+    settingsLoaded,
+    summary,
+    isLoading,
+    error,
+    start,
+    end,
+    n,
+    interval,
+    dispatch,
+  ]);
 
   return (
     <div className="space-y-8 p-4 bg-gray-100 dark:bg-gray-900 transition-colors">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-white transition-colors">Dashboard</h2>
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+        Dashboard
+      </h2>
 
-      {/* Filters */}
       <DashboardFilter
         start={start}
         end={end}
@@ -83,46 +96,57 @@ const Dashboard: React.FC = () => {
         onChangeEnd={setEnd}
         onChangeN={setN}
         onChangeInterval={setInterval}
-        onApply={fetchCharts}
+        onApply={loadCharts}
       />
 
-      {/* Loading state */}
-      {(loading || !chartsLoaded) ? (
-        <div className="p-4 text-center text-gray-700 dark:text-gray-300 transition-colors">Loading…</div>
-      ) : (
+      {error && (
+        <div className="text-red-500 text-center">Error: {error}</div>
+      )}
+
+      {isLoading ? (
+        <div className="p-4 text-center text-gray-700 dark:text-gray-300">
+          Loading…
+        </div>
+      ) : summary ? (
         <>
           {/* Summary Cards */}
-          {summary && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Total Spent', value: formatAmt(summary.totalSpent) },
-                { label: 'Expense Count', value: summary.expenseCount },
-                { label: 'Avg. per Expense', value: formatAmt(summary.averageSpent) },
-              ].map(item => (
-                <div key={item.label} className="p-4 bg-white dark:bg-gray-800 rounded shadow h-24 transition-colors">
-                  <h4 className="text-sm text-gray-500 dark:text-gray-400 transition-colors">{item.label}</h4>
-                  <p className="text-xl font-bold text-gray-800 dark:text-white transition-colors">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { label: 'Total Spent', value: formatAmt(summary.totalSpent) },
+              { label: 'Expense Count', value: summary.expenseCount },
+              { label: 'Avg. per Expense', value: formatAmt(summary.averageSpent) },
+            ].map(item => (
+              <div
+                key={item.label}
+                className="p-4 bg-white dark:bg-gray-800 rounded shadow h-24"
+              >
+                <h4 className="text-sm text-gray-500 dark:text-gray-400">
+                  {item.label}
+                </h4>
+                <p className="text-xl font-bold text-gray-800 dark:text-white">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
 
           {/* Charts */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Donut Chart */}
-            <div className="p-4 bg-white dark:bg-gray-800 rounded shadow h-64 transition-colors">
-              <h3 className="mb-2 text-gray-800 dark:text-white transition-colors">Total Expenses By Category</h3>
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded shadow h-64">
+              <h3 className="mb-2 text-gray-800 dark:text-white">
+                Total by Category
+              </h3>
+              <ResponsiveContainer>
                 <PieChart>
                   <Pie
-                    data={categoryData}
+                    data={category}
                     dataKey="value"
                     nameKey="category"
                     innerRadius={50}
                     outerRadius={80}
                     label
                   >
-                    {categoryData.map((_, i) => (
+                    {category.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
@@ -131,11 +155,12 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Bar Chart */}
-            <div className="p-4 bg-white dark:bg-gray-800 rounded shadow h-64 transition-colors">
-              <h3 className="mb-2 text-gray-800 dark:text-white transition-colors">Top {n} Transactions</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topTransactions} layout="vertical">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded shadow h-64">
+              <h3 className="mb-2 text-gray-800 dark:text-white">
+                Top {n} Transactions
+              </h3>
+              <ResponsiveContainer>
+                <BarChart data={top} layout="vertical">
                   <XAxis type="number" tickFormatter={formatAmt} />
                   <YAxis dataKey="title" type="category" width={150} />
                   <Bar dataKey="amount" fill="#3B82F6" />
@@ -144,11 +169,12 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Line Chart */}
-            <div className="md:col-span-2 p-4 bg-white dark:bg-gray-800 rounded shadow h-80 transition-colors">
-              <h3 className="mb-2 text-gray-800 dark:text-white transition-colors">Total Expenses by {interval.charAt(0).toUpperCase() + interval.slice(1)}</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={lineData}>
+            <div className="md:col-span-2 p-4 bg-white dark:bg-gray-800 rounded shadow h-80">
+              <h3 className="mb-2 text-gray-800 dark:text-white">
+                Expenses by {interval}
+              </h3>
+              <ResponsiveContainer>
+                <LineChart data={timeseries}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" />
                   <YAxis tickFormatter={formatAmt} />
@@ -160,7 +186,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 };

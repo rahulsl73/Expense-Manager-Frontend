@@ -1,81 +1,63 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
-import { ThemeCurrencyContext, type Settings as SettingsType } from "../contexts/ThemeCurrencyContext";
-import api from "../api/api";
-import { toast } from "react-toastify";
+import React, { useEffect, useState } from 'react'
+import { useAppDispatch, useAppSelector } from '../hooks'
+import { saveSettings, convertExpenses } from '../store/slices/settingsSlice'
+import { toast } from 'react-toastify'
+import type { Settings as SettingsType } from '../store/slices/settingsSlice'
 
 const Settings: React.FC = () => {
-  const { currencies, currencyCode, theme, loading, updateSettings } =
-    useContext(ThemeCurrencyContext);
+  const dispatch = useAppDispatch()
+  const { settings, loadingFetch, currencies } = useAppSelector(s => s.settings)
 
-  const prevCurrency = useRef<string>(currencyCode);
-
-  const [code, setCode] = useState<string>(currencyCode);
-  const [darkMode, setDarkMode] = useState<boolean>(theme === "DARK");
-  const [saving, setSaving] = useState<boolean>(false);
+  const [code, setCode] = useState<string>('')
+  const [darkMode, setDarkMode] = useState<boolean>(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    prevCurrency.current = currencyCode;
-    setCode(currencyCode);
-    setDarkMode(theme === "DARK");
-  }, [currencyCode, theme]);
+    if (settings) {
+      setCode(settings.currencyCode)
+      setDarkMode(settings.theme === 'DARK')
+    }
+  }, [settings])
 
-  if (loading) {
-    return (
-      <div className="max-w-md mx-auto p-6 text-center text-gray-700 dark:text-gray-300">
-        Loading settings…
-      </div>
-    );
+  if (loadingFetch || !settings) {
+    return <div className="p-6 text-center text-gray-600 dark:text-gray-300">Loading settings…</div>
   }
 
+  const hasChanges = settings.currencyCode !== code || (settings.theme === 'DARK') !== darkMode
+
   const handleSave = async () => {
-    setSaving(true);
+    setSaving(true)
+    const newSettings: SettingsType = { currencyCode: code, theme: darkMode ? 'DARK' : 'LIGHT' }
     try {
-      const userId = Number(localStorage.getItem("userId"));
-      const newSettings: SettingsType = {
-        currencyCode: code,
-        theme: darkMode ? "DARK" : "LIGHT",
-        userId,
-      };
-
-      const saved = await updateSettings(newSettings);
-      toast.success("Settings saved!");
-
-      await api.put(
-        `user/${userId}/expenses/convert`,
-        {
-          fromCurrency: prevCurrency.current,
-          toCurrency: saved.currencyCode,
-        }
-      );
-
-      toast.success(`All expenses converted from ${prevCurrency.current} to ${saved.currencyCode}!`);
-      prevCurrency.current = saved.currencyCode;
-    } catch (err) {
-      console.error("Error converting expenses:", err);
-      toast.error("Failed to convert all expenses. Check console for details.");
+      const saved = await dispatch(saveSettings(newSettings)).unwrap()
+      toast.success('Settings saved!')
+      if (settings.currencyCode !== saved.currencyCode) {
+        await dispatch(convertExpenses({ from: settings.currencyCode, to: saved.currencyCode })).unwrap()
+        toast.success(`Expenses converted from ${settings.currencyCode} to ${saved.currencyCode}!`)
+      }
+    } catch (err: any) {
+      toast.error(err || 'Save or conversion failed')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   return (
-    <div className="max-w-md mx-auto bg-white dark:bg-gray-800 p-6 rounded shadow transition-colors">
-      <h2 className="text-2xl mb-4 text-gray-900 dark:text-gray-100">
-        Settings
-      </h2>
+    <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">Settings</h2>
 
-      {/* Currency selector  */}
       <div className="mb-4">
-        <label className="block mb-1 text-gray-700 dark:text-gray-300">
+        <label htmlFor="currency" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Currency Code
         </label>
         <select
+          id="currency"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={e => setCode(e.target.value)}
           disabled={saving}
-          className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          {currencies.map((c) => (
+          {currencies.map(c => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -83,33 +65,33 @@ const Settings: React.FC = () => {
         </select>
       </div>
 
-      {/* Dark mode toggle */}
       <div className="flex items-center mb-6">
         <input
           id="darkMode"
           type="checkbox"
           checked={darkMode}
-          onChange={() => setDarkMode((d) => !d)}
+          onChange={() => setDarkMode(d => !d)}
           disabled={saving}
-          className="mr-2"
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
-        <label htmlFor="darkMode" className="text-gray-700 dark:text-gray-300">
+        <label htmlFor="darkMode" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Enable Dark Mode
         </label>
       </div>
 
-      {/* Save button */}
       <button
         onClick={handleSave}
-        disabled={saving}
-        className={`w-full py-2 rounded text-white ${
-          saving ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+        disabled={saving || !hasChanges}
+        className={`w-full py-2 px-4 rounded-md font-medium text-white transition-colors ${
+          saving || !hasChanges
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700'
         }`}
       >
-        {saving ? "Applying…" : "Save Settings & Convert Expenses"}
+        {saving ? 'Applying…' : 'Save & Convert'}
       </button>
     </div>
-  );
-};
+  )
+}
 
-export default Settings;
+export default Settings

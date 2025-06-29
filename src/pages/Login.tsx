@@ -1,17 +1,19 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAppDispatch, useAppSelector } from '../hooks';
+import { login as loginAction } from '../store/slices/authSlice';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth(); 
+  const dispatch = useAppDispatch();
+  const { loading, error } = useAppSelector(state => state.auth);
 
   return (
     <div className="max-w-sm mx-auto mt-20">
       <h1 className="text-2xl mb-4">Login</h1>
-
+      {error && <div className="text-red-500 mb-4">{error}</div>}
       <Formik
         initialValues={{ username: '', password: '' }}
         validationSchema={Yup.object({
@@ -23,19 +25,22 @@ const Login: React.FC = () => {
           { setSubmitting, setFieldError }
         ) => {
           setSubmitting(true);
-          try {
-            await login(values.username, values.password);
-            navigate('/');
-          } catch (err: any) {
-            setFieldError(
-              'username',
-              err.response?.status === 401
-                ? 'Invalid username or password'
-                : 'Login failed'
-            );
-          } finally {
-            setSubmitting(false);
-          }
+          dispatch(loginAction({ username: values.username, password: values.password }))
+            .unwrap()
+            .then(() => {
+              navigate('/');
+            })
+            .catch((msg: string) => {
+              setFieldError(
+                'username',
+                msg === 'Unauthorized'
+                  ? 'Invalid username or password'
+                  : msg
+              );
+            })
+            .finally(() => {
+              setSubmitting(false);
+            });
         }}
       >
         {({ isSubmitting }) => (
@@ -71,12 +76,14 @@ const Login: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loading}
               className={`w-full p-2 rounded text-white ${
-                isSubmitting ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+                isSubmitting || loading
+                  ? 'bg-gray-400'
+                  : 'bg-blue-500 hover:bg-blue-600'
               } transition-colors`}
             >
-              {isSubmitting ? 'Logging in…' : 'Login'}
+              {loading ? 'Logging in…' : 'Login'}
             </button>
           </Form>
         )}
